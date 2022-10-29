@@ -4,11 +4,11 @@ neovim integration with [zellij](https://github.com/zellij-org/zellij)
 
 ## Features
 
-`:ZellijNavigate<Left|Right|Down|Up>`
-`:ZellijNewPane`
-`:ZellijNewTab`
-`:ZellijRenamePane`
-`:ZellijRenameTab`
+* `:ZellijNavigate<Left|Right|Down|Up>`
+* `:ZellijNewPane`
+* `:ZellijNewTab`
+* `:ZellijRenamePane`
+* `:ZellijRenameTab`
 
 For [vim-tmux-navigator](https://github.com/zellij-org/zellij) compatibility, use the `vimTmuxNavigatorKeybinds` prop during setup.
 
