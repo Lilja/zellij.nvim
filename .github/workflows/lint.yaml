@@ -23,7 +23,9 @@ jobs:
 
       - name: Set up .luacheckrc
         run: |
-         echo 'std = { globals = {"vim"}, }' > ./luacheckrc
+         echo '
+            std = "luajit"
+            globals = { "vim" }' > ./luacheckrc
 
       - uses: leafo/gh-actions-lua@v9
         with:
