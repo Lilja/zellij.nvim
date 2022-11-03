@@ -25,7 +25,15 @@ jobs:
         run: |
          echo 'std = { globals = {"vim"}, }' > ./luacheckrc
 
-      - name: Luacheck linter
-        uses: lunarmodules/luacheck@v0
+      - uses: leafo/gh-actions-lua@v9
         with:
-            args: ./lua --config ./luacheckrc
+          luaVersion: "5.1.5"
+
+      - uses: leafo/gh-actions-luarocks@v4
+      - name: build
+        run: |
+          luarocks install luacheck
+
+      - name: Luacheck linter
+        run: |
+            luacheck ./lua --config ./luacheckrc
