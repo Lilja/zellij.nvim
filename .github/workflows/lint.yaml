@@ -1,10 +1,6 @@
 name: 'Lua Link Checker'
 
-on:
-  workflow_dispatch:
-  push:
-    branches:
-      - master
+on: [push]
 
 permissions:
   contents: read
