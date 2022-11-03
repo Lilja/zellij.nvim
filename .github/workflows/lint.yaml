@@ -1,6 +1,10 @@
 name: 'Lua Link Checker'
 
-on: [push]
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
 
 permissions:
   contents: read
