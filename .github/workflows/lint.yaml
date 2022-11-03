@@ -23,12 +23,7 @@ jobs:
 
       - name: Set up .luacheckrc
         run: |
-         echo '
-            std = {
-               globals = {"vim"},
-            }
-         ' > ./luacheckrc
-          write-mode: append
+         echo 'std = { globals = {"vim"}, }' > ./luacheckrc
 
       - name: Luacheck linter
         uses: lunarmodules/luacheck@v0
