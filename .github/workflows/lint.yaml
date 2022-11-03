@@ -8,7 +8,6 @@ on:
 
 permissions:
   contents: write
-  pull-requests: write
 
 # This allows a subsequently queued workflow run to interrupt previous runs
 concurrency:
@@ -25,7 +24,7 @@ jobs:
       - name: Set up .luacheckrc
         uses: DamianReeves/write-file-action@master
         with:
-          path: ${{ env.home}}/.luacheckrc
+          path: ./luacheckrc
           contents: |
             std = {
                globals = {"vim"},
@@ -35,4 +34,4 @@ jobs:
       - name: Luacheck linter
         uses: lunarmodules/luacheck@v0
         with:
-            args: ./lua
+            args: ./lua --config ./luacheckrc
