@@ -23,15 +23,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v3
 
-      - name: Setup lua
-        uses: xpol/setup-lua@v1
+      - name: Luacheck linter
+        uses: lunarmodules/luacheck@v0
         with:
-            lua-version: "5.1.5"
-              - name: Install
-    
-      - name: Install luarocks
-        uses: leafo/gh-actions-luarocks@v4
-
-      - name: Link check (warnings, changed files)
-        run: |
-          luacheck ./lua
+            args: ./lua
