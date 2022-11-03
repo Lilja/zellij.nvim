@@ -23,12 +23,12 @@ jobs:
 
       - name: Set up .luacheckrc
         uses: DamianReeves/write-file-action@master
-        with:
-          path: ./luacheckrc
-          contents: |
+        run: |
+         echo '
             std = {
                globals = {"vim"},
             }
+         ' > ./luacheckrc
           write-mode: append
 
       - name: Luacheck linter
