@@ -60,7 +60,6 @@ function zellij.zjNavigate(direction)
     local zellijDirection = directionTranslation[direction]
     zellij.log("Navigate " .. direction .. " aka " .. zellijDirection)
     if zellij.edgeDetect(direction) then
-        print(vim.inspect({ ACTION, MOVE_FOCUS_OR_TAB, zellijDirection }))
         zellij.ZellijCommand(zellij.mergeArgs({ ACTION, MOVE_FOCUS_OR_TAB, zellijDirection }), false)
     end
 end
