@@ -1,0 +1,15 @@
+layout {
+    tab name="Tab #1" {
+        pane {}
+
+        pane borderless=true size=1 {
+            plugin location="file:/home/lilja/code/zellij.nvim/mode-logger/target/wasm32-wasi/debug/mode-logger.wasm"
+        }
+    }
+    tab name="Tab #2" {
+        pane {}
+        pane borderless=true size=1 {
+            plugin location="file:/home/lilja/code/zellij.nvim/mode-logger/target/wasm32-wasi/debug/mode-logger.wasm"
+        }
+    }
+}
