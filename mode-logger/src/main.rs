@@ -57,7 +57,7 @@ impl ZellijPlugin for State {
                     sep.yellow()
                 ));
                 s.push_str(&sep.red().on_black());
-                s.push_str(&("yalla".blue()));
+                s.push_str(&("asdf".blue()));
             } else {
                 s.push_str(&format!(
                     "{}{}",
@@ -69,6 +69,6 @@ impl ZellijPlugin for State {
             // s.push_str(&" ");
             // if self.tabs.len() > idx+1
         });
-        println!("Hi mom! rows:{} cols:{}{}", rows, cols, s);
+        println!("Hi mom! rows:{} cols:{}{}{}", rows, cols, s, "blu2".blue());
     }
 }
