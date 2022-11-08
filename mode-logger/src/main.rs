@@ -96,7 +96,6 @@ impl ZellijPlugin for State {
 
         let left_padding = " ".repeat((col_diff-left.len()) / 2).on_black();
         let right_padding = " ".repeat((col_diff-(zellij_human_readable_mode.len()+3)) / 2).on_black();
-        println!("{} {} {} {}", cols, col_diff, zellij_human_readable_mode.len(), (col_diff-(zellij_human_readable_mode.len()+3)));
 
         println!(
             "{left}{left_padding}{center}{right_padding}{right}",
@@ -106,5 +105,7 @@ impl ZellijPlugin for State {
              left=left,
              right=right,
          );
+
+        println!("{} {} {} {}", cols, col_diff, zellij_human_readable_mode.len(), (col_diff-(zellij_human_readable_mode.len()+3)));
     }
 }
