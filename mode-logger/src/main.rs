@@ -29,6 +29,8 @@ impl ZellijPlugin for State {
                 let mut new_tabs: Vec<TabInfo> = vec![];
                 for (i, tab) in tabs.iter().enumerate() {
                     let temp = TabInfo {
+                        active_swap_layout_name: tab.active_swap_layout_name,
+                        is_swap_layout_dirty: tab.is_swap_layout_dirty,
                         position: tab.position,
                         name: tab.name.to_owned(),
                         active: tab.active,
