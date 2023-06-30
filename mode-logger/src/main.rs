@@ -12,7 +12,6 @@ struct State {
     active_tab_idx: usize,
     mode_info: ModeInfo,
     //mouse_click_pos: usize,
-    //should_render: bool,
 }
 
 register_plugin!(State);
@@ -59,6 +58,7 @@ impl ZellijPlugin for State {
 
     fn render(&mut self, rows: usize, cols: usize) {
         let mode = self.mode_info.mode;
+        let session_name = &self.mode_info.session_name;
         /*
          * <-----------------------------> col     - e.g. 160
          * <--------------|--------------> middle = col / 2
@@ -80,31 +80,39 @@ impl ZellijPlugin for State {
          *
          * */
 
-        let mode = create_mode_part(&self.mode_info.mode);
-        let free_space = cols - mode.number_of_chars;
-        let tabs = create_tabs(&self.tabs, free_space);
+        let left = create_session_name(session_name.clone());
+        let mode = create_mode_part(&mode);
+        let free_space_without_center = cols - mode.number_of_chars - left.number_of_chars;
+        let tabs = create_tabs(&self.tabs, free_space_without_center);
         let total_unused_space = cols - tabs.number_of_chars;
         if tabs.number_of_chars > cols {
             println!("Out of bounds");
             return;
         }
-        let middle = cols / 2;
-        let left = "";
+        let middle = find_middle(cols);
 
-        let tab_size = fix_wonky_programming(tabs.number_of_chars-4);
-        let left_padding = " "
-            .repeat(middle - left.len() - tabs.number_of_chars/2)
-            .on_black();
-        let right_padding = " "
-            .repeat(middle - mode.number_of_chars - tab_size)
-            .on_black();
+        let free_space = if tabs.number_of_chars > free_space_without_center {
+            0
+        } else {
+            free_space_without_center - tabs.number_of_chars
+        };
+        let tab_size = fix_wonky_programming(tabs.number_of_chars);
+        let no_left_padding =
+            calculate_left_padding(middle, left.number_of_chars, tabs.number_of_chars);
+        let left_padding = " ".repeat(no_left_padding).on_black();
+        let no_right_padding =
+            calculate_right_padding(middle, mode.number_of_chars, tab_size, no_left_padding, free_space);
+        let right_padding = " ".repeat(no_right_padding).on_black();
         println!(
-            "Cols: {}, Middle: {}, Tabs: {}, Mode: {}, right_padding: {}",
+            "Cols: {}, Middle: {}, Left size: {}, Tab size: {}, Right size: {}, left_padding: {left_padding}, right_padding: {right_padding}, free_space: {free_space}",
             cols,
             middle,
+            left.number_of_chars,
             tabs.number_of_chars,
             mode.number_of_chars,
-            middle - mode.number_of_chars - tab_size,
+            left_padding = no_left_padding,
+            right_padding = no_right_padding,
+            free_space = free_space,
         );
         /*
         println!(
@@ -119,10 +127,20 @@ impl ZellijPlugin for State {
             left_padding = left_padding,
             right_padding = right_padding,
             center = tabs.text,
-            left = left,
+            left = left.text,
             right = mode.text,
         );
-        print!("{left}{m}", left = " ".repeat(middle - 1), m = "I".yellow());
+        println!("{left}{m}{right}", left = "*".repeat(middle - 1), m = "I".yellow(), right="*".repeat(middle-1));
+        println!(
+            "left   size: {}, padding: {}",
+            left.number_of_chars, no_left_padding
+        );
+        println!("center size: {}, divided and rounded: {}. Should be +4 because of pad+seperators", tabs.number_of_chars, tab_size);
+        println!(
+            "right  size: {}, padding: {}",
+            mode.number_of_chars, no_right_padding
+        );
+        println!("cols: {}, middle: {}", cols, middle);
     }
 }
 
@@ -138,8 +156,16 @@ fn create_tabs(tabs: &Vec<TabInfo>, free_space: usize) -> ContentLol {
     let number_of_tabs = tabs.len();
     tabs.iter().for_each(|tab| {
         let name = &tab.name;
-        let capped_text = cap_tab_text(name.to_string(), free_space / number_of_tabs);
+        // 2: 1 space before text, 1 after.
+        // 2: Seperator before and after
+        let extra_space_per_tab = 2 + 2;
+        let capped_text = cap_tab_text(
+            name.to_string(),
+            extra_space_per_tab,
+            free_space / number_of_tabs,
+        );
         let capped_text_size = capped_text.len();
+        eprintln!("New text size: {}", capped_text_size);
         if tab.active {
             s.push_str(&create_seperated_formated_text(ColorizeTokenOptions {
                 start: Some(DirectionOption {
@@ -290,10 +316,13 @@ fn color_token(text: &str, fg: Option<Color>, bg: Option<Color>, pad_string: boo
     };
 }
 
-fn cap_tab_text(text: String, free_space_per_tab: usize) -> String {
+fn cap_tab_text(text: String, extra_space: usize, free_space_per_tab: usize) -> String {
     // Do we need to cut the tab name?
-    if text.len() > free_space_per_tab {
-        return format!("{}...", text[..free_space_per_tab].to_string());
+    let total_space = text.len() + extra_space;
+    eprintln!("Is too large? text: {} free: {}", total_space, free_space_per_tab);
+    if total_space > free_space_per_tab {
+        eprintln!("Capping, size: {}, free space: {}, deriv: {}", total_space, free_space_per_tab, free_space_per_tab-3);
+        return format!("{}...", text[..free_space_per_tab - 3].to_string());
     }
     return text;
 }
@@ -302,11 +331,84 @@ fn fix_wonky_programming(cheat: usize) -> usize {
     // Dividing by 2 will produce "the same" integer for n and n+1.
     // This has the affect that the line will "jump" every second character.
     // To witness this, uncomment the solution and just return the product.
-    eprintln!("val: {}", cheat);
+    // eprintln!("val: {}", cheat);
     if cheat == 0 {
         return 0;
     }
-    eprintln!("val: {}, post: {}", cheat, (cheat+1)/2);
-    return (cheat+1) / 2;
+    // eprintln!("val: {}, post: {}", cheat, ((cheat as f32) / 2.0).round() as usize);
+    return ((cheat as f32) / 2.0).round() as usize;
 }
 
+fn create_session_name(maybe_session_name: Option<String>) -> ContentLol {
+    if maybe_session_name.is_none() {
+        return ContentLol {
+            text: String::new(),
+            number_of_chars: 0,
+        };
+    } else {
+        let val = maybe_session_name.unwrap();
+        let val_size = val.len();
+        let x = create_seperated_formated_text(ColorizeTokenOptions {
+            start: None,
+            end: Some(DirectionOption {
+                direction: SeperatorDirection::Right,
+                color: Some(Color::Red),
+                on: Some(Color::Black),
+            }),
+            on: Some(Color::Red),
+            color: Some(Color::Black),
+            text: val,
+            pad_string: true,
+        });
+
+        return ContentLol {
+            text: x,
+            number_of_chars: val_size + 2 + 1,
+        };
+    }
+}
+
+fn calculate_left_padding(middle: usize, left_size: usize, center_size: usize) -> usize {
+    if (middle - left_size) < center_size / 2 {
+        return 0;
+    }
+    return middle - left_size - center_size / 2;
+}
+
+fn calculate_right_padding(
+    middle: usize,
+    right_size: usize,
+    center_size: usize,
+    left_padding_zero_compensation: usize,
+    free_space: usize,
+) -> usize {
+
+    /*
+    eprintln!(
+        "Right padding: middle: {} right_size: {} center_size: {}, product: {}",
+        middle,
+        right_size,
+        center_size,
+        (middle - right_size - center_size)
+    );
+    */
+    if left_padding_zero_compensation == 0 {
+        return free_space;
+    }
+    if (middle - right_size) < center_size {
+        return 0;
+    }
+    let calc = (middle - right_size - center_size);
+    // Because it's offshot by 1.
+    if calc > 0 {
+        return calc-1;
+    }
+    return calc;
+}
+
+fn find_middle(cols: usize) -> usize {
+    if cols % 2 != 0 {
+        return (cols/2)+1;
+    }
+    return cols/2;
+}
