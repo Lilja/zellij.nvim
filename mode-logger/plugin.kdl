@@ -1,15 +1,21 @@
 layout {
     tab name="Tab #1" {
         pane borderless=true size=10 {
-            plugin location="file:/Users/lilja/code/zellij.nvim/mode-logger/target/wasm32-wasi/debug/mode-logger.wasm"
+            plugin location="file:/home/lilja/code/zellij.nvim/mode-logger/target/wasm32-wasi/debug/mode-logger.wasm"
         }
-        pane {}
+        pane command="fish" {
+            args "-c" "tail -f /tmp/zellij-1000/zellij-log/zellij.log"
+        }
 
     }
+    /*
     tab name="Tab #2" {
         pane borderless=true size=10 {
-            plugin location="file:/Users/lilja/code/zellij.nvim/mode-logger/target/wasm32-wasi/debug/mode-logger.wasm"
+            plugin location="file:/home/lilja/code/zellij.nvim/mode-logger/target/wasm32-wasi/debug/mode-logger.wasm"
         }
-        pane {}
+        pane command="fish" {
+            args "-c" "tail -f /tmp/zellij-1000/zellij-log/zellij.log"
+        }
     }
+    */
 }

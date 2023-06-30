@@ -1,4 +1,7 @@
-use colored::{Colorize, ColoredString, Color};
+use std::cmp::min;
+use std::io::{self, Write};
+
+use colored::{Color, ColoredString, Colorize};
 use regex::Regex;
 use unicode_segmentation::UnicodeSegmentation;
 use zellij_tile::prelude::*;
@@ -14,8 +17,8 @@ struct State {
 
 register_plugin!(State);
 
-const LEFT_SEP: &str = "\u{E0B0}";
-const RIGHT_SEP: &str = "\u{E0B2}";
+const RIGHT_SEP: &str = "\u{E0B0}";
+const LEFT_SEP: &str = "\u{E0B2}";
 
 impl ZellijPlugin for State {
     fn load(&mut self) {
@@ -56,7 +59,6 @@ impl ZellijPlugin for State {
 
     fn render(&mut self, rows: usize, cols: usize) {
         let mode = self.mode_info.mode;
-        let lol = create_tabs(&self.tabs);
         /*
          * <-----------------------------> col     - e.g. 160
          * <--------------|--------------> middle = col / 2
@@ -67,7 +69,7 @@ impl ZellijPlugin for State {
          * <-----------><text><---------->
          */
 
-        /**
+        /*
          * <-----------------------------> col     - e.g. 160
          *             <Normal>            Mode part (<No>)
          *          <Tab 1, Tab 2>         Tab display (<Ta>)
@@ -77,22 +79,32 @@ impl ZellijPlugin for State {
          *              <Ta><--------><Se> right padding = middle - len(<Righ>) - len(<Middle>)
          *
          * */
-        let total_unused_space = cols - lol.number_of_chars;
+
+        let mode = create_mode_part(&self.mode_info.mode);
+        let free_space = cols - mode.number_of_chars;
+        let tabs = create_tabs(&self.tabs, free_space);
+        let total_unused_space = cols - tabs.number_of_chars;
+        if tabs.number_of_chars > cols {
+            println!("Out of bounds");
+            return;
+        }
         let middle = cols / 2;
-        let lol2 = create_mode_part(&self.mode_info.mode);
         let left = "";
 
-        let left_padding = " ".repeat((total_unused_space - left.len()) / 2).on_black();
+        let tab_size = fix_wonky_programming(tabs.number_of_chars-4);
+        let left_padding = " "
+            .repeat(middle - left.len() - tabs.number_of_chars/2)
+            .on_black();
         let right_padding = " "
-            .repeat(5)
+            .repeat(middle - mode.number_of_chars - tab_size)
             .on_black();
         println!(
-            "Cols: {} total_unused_space: {} zhrm: {} mode space: {}, tab space: {}",
+            "Cols: {}, Middle: {}, Tabs: {}, Mode: {}, right_padding: {}",
             cols,
-            total_unused_space,
-            lol2.text.len(),
-            lol2.number_of_chars,
-            lol.number_of_chars,
+            middle,
+            tabs.number_of_chars,
+            mode.number_of_chars,
+            middle - mode.number_of_chars - tab_size,
         );
         /*
         println!(
@@ -102,14 +114,15 @@ impl ZellijPlugin for State {
         );
         */
 
-        print!(
+        println!(
             "{left}{left_padding}{center}{right_padding}{right}",
             left_padding = left_padding,
             right_padding = right_padding,
-            center = lol.text,
+            center = tabs.text,
             left = left,
-            right = lol2.text,
+            right = mode.text,
         );
+        print!("{left}{m}", left = " ".repeat(middle - 1), m = "I".yellow());
     }
 }
 
@@ -118,57 +131,56 @@ struct ContentLol {
     text: String,
 }
 
-fn create_tabs(tabs: &Vec<TabInfo>) -> ContentLol {
+fn create_tabs(tabs: &Vec<TabInfo>, free_space: usize) -> ContentLol {
     let mut s = String::new();
     let mut chars: usize = 0;
 
+    let number_of_tabs = tabs.len();
     tabs.iter().for_each(|tab| {
         let name = &tab.name;
+        let capped_text = cap_tab_text(name.to_string(), free_space / number_of_tabs);
+        let capped_text_size = capped_text.len();
         if tab.active {
-            s.push_str(&format!(
-                "{}{}{}",
-                LEFT_SEP.on_yellow().black(),
-                format!(" {} ", name).on_yellow().black(),
-                LEFT_SEP.yellow()
-            ));
-
-            // s.push_str(&format!("{}", leftSep.red().on_black()));
+            s.push_str(&create_seperated_formated_text(ColorizeTokenOptions {
+                start: Some(DirectionOption {
+                    on: Some(Color::Yellow),
+                    color: Some(Color::Black),
+                    direction: SeperatorDirection::Right,
+                }),
+                end: Some(DirectionOption {
+                    on: Some(Color::Black),
+                    color: Some(Color::Yellow),
+                    direction: SeperatorDirection::Right,
+                }),
+                text: capped_text,
+                on: Some(Color::Yellow),
+                color: Some(Color::Black),
+                pad_string: true,
+            }));
         } else {
-            /*
-            s.push_str(&format!(
-                "{}{}",
-                LEFT_SEP.on_bright_black().black(),
-                format!(" {} ", name).on_bright_black(),
-            ));
-            s.push_str(&format!("{}", LEFT_SEP.bright_black()));
-            */
-
-            s.push_str(&create_cool_text(ColorizeTokenOptions{
+            s.push_str(&create_seperated_formated_text(ColorizeTokenOptions {
                 start: Some(DirectionOption {
                     on: Some(Color::BrightBlack),
                     color: Some(Color::Black),
-                    direction: SeperatorDirection::Left,
+                    direction: SeperatorDirection::Right,
                 }),
                 end: Some(DirectionOption {
-                    on: Some(Color::BrightBlack),
-                    color: None,
-                    direction: SeperatorDirection::Left,
+                    on: Some(Color::Black),
+                    color: Some(Color::BrightBlack),
+                    direction: SeperatorDirection::Right,
                 }),
-                text: name.to_string(),
+                text: capped_text,
                 on: Some(Color::BrightBlack),
                 color: None,
                 pad_string: true,
-
             }));
         }
         // Space left and right of tab name
         chars = chars + 2;
         // Tab name itself
-        chars = chars + tab.name.len();
+        chars = chars + capped_text_size;
         // Left and right separator
         chars = chars + 2;
-        // s.push_str(&" ");
-        // if self.tabs.len() > idx+1
     });
 
     let number_of_spaces_between_tabs: usize = tabs.len() - 1;
@@ -181,22 +193,27 @@ fn create_tabs(tabs: &Vec<TabInfo>) -> ContentLol {
 
 fn create_mode_part(mode: &InputMode) -> ContentLol {
     let zellij_human_readable_mode = format!("{:?}", mode).to_uppercase();
-    let zellij_human_readable_mode_padded = format!(" {} ", zellij_human_readable_mode)
-        .black()
-        .on_green();
-    let right = format!(
-        "{right_sep_uncolored}{zellijHumanReadableModePadded}",
-        right_sep_uncolored = RIGHT_SEP.green().on_black(),
-        zellijHumanReadableModePadded = zellij_human_readable_mode_padded,
-    );
+
+    let size = zellij_human_readable_mode.len();
+    let text = create_seperated_formated_text(ColorizeTokenOptions {
+        start: Some(DirectionOption {
+            direction: SeperatorDirection::Left,
+            on: Some(Color::Black),
+            color: Some(Color::Green),
+        }),
+        end: None,
+        text: zellij_human_readable_mode,
+        color: Some(Color::Black),
+        on: Some(Color::Green),
+        pad_string: true,
+    });
 
     return ContentLol {
         // 2 spaces + 1 seperator
-        number_of_chars: zellij_human_readable_mode.len() + 2 + 1,
-        text: right,
-    }
+        number_of_chars: size + 2 + 1,
+        text,
+    };
 }
-
 
 #[derive(PartialEq, Eq)]
 enum SeperatorDirection {
@@ -216,54 +233,80 @@ struct ColorizeTokenOptions {
     on: Option<Color>,
     pad_string: bool,
 }
-fn create_cool_text(opts: ColorizeTokenOptions) -> String {
+fn create_seperated_formated_text(opts: ColorizeTokenOptions) -> String {
     let output = color_token(&opts.text, opts.color, opts.on, opts.pad_string);
     let mut _start = String::new();
     let mut _end = String::new();
     match opts.start {
         Some(start) => {
             _start = color_token(
-                if start.direction == SeperatorDirection::Left { LEFT_SEP } else { RIGHT_SEP },
+                if start.direction == SeperatorDirection::Left {
+                    LEFT_SEP
+                } else {
+                    RIGHT_SEP
+                },
                 start.color,
                 start.on,
-                false
+                false,
             )
-        },
-        None => {},
+        }
+        None => {}
     }
     match opts.end {
         Some(end) => {
-            let sep = if end.direction == SeperatorDirection::Left { LEFT_SEP } else { RIGHT_SEP };
-            _end = color_token(
-                sep,
-                end.color,
-                end.on,
-                false,
-            );
-        },
-        None => {},
+            let sep = if end.direction == SeperatorDirection::Left {
+                LEFT_SEP
+            } else {
+                RIGHT_SEP
+            };
+            _end = color_token(sep, end.color, end.on, false);
+        }
+        None => {}
     }
     return format!("{}{}{}", _start, output, _end);
 }
 
 fn color_token(text: &str, fg: Option<Color>, bg: Option<Color>, pad_string: bool) -> String {
-    let mut output = String::new();
-    let padded_output = if pad_string { format!(" {} ", text) } else { format!("{}", text) };
+    let padded_output = if pad_string {
+        format!(" {} ", text)
+    } else {
+        format!("{}", text)
+    };
 
-
-    let aaaa = if fg.is_some() { padded_output.color(fg.unwrap()) } else { padded_output };
-    match fg {
-        Some(a) => {
-            output = format!("{}", padded_output.color(a))
-        },
-        None => {},
+    let mut xd: Option<ColoredString> = None;
+    if fg.is_some() {
+        xd = Some(padded_output.color(fg.unwrap()))
     }
-
-    match bg {
-        Some(b) => {
-            output = format!("{}{}", output, padded_output.on_color(b));
+    if bg.is_some() {
+        if xd.is_some() {
+            xd = Some(xd.unwrap().on_color(bg.unwrap()))
+        } else {
+            xd = Some(padded_output.on_color(bg.unwrap()))
         }
-        None => {},
     }
-    return output;
+    return match xd {
+        Some(a) => format!("{}", a),
+        None => String::new(),
+    };
 }
+
+fn cap_tab_text(text: String, free_space_per_tab: usize) -> String {
+    // Do we need to cut the tab name?
+    if text.len() > free_space_per_tab {
+        return format!("{}...", text[..free_space_per_tab].to_string());
+    }
+    return text;
+}
+fn fix_wonky_programming(cheat: usize) -> usize {
+    // Because tab can be an uneven amount of characters.
+    // Dividing by 2 will produce "the same" integer for n and n+1.
+    // This has the affect that the line will "jump" every second character.
+    // To witness this, uncomment the solution and just return the product.
+    eprintln!("val: {}", cheat);
+    if cheat == 0 {
+        return 0;
+    }
+    eprintln!("val: {}, post: {}", cheat, (cheat+1)/2);
+    return (cheat+1) / 2;
+}
+
