@@ -1,10 +1,10 @@
-use std::cmp::min;
-use std::io::{self, Write};
+mod seperator;
+mod spacing;
 
-use colored::{Color, ColoredString, Colorize};
-use regex::Regex;
-use unicode_segmentation::UnicodeSegmentation;
+use colored::{Color, Colorize};
 use zellij_tile::prelude::*;
+
+extern crate alternatetopbar_lib;
 
 #[derive(Default)]
 struct State {
@@ -15,9 +15,6 @@ struct State {
 }
 
 register_plugin!(State);
-
-const RIGHT_SEP: &str = "\u{E0B0}";
-const LEFT_SEP: &str = "\u{E0B2}";
 
 impl ZellijPlugin for State {
     fn load(&mut self) {
@@ -34,7 +31,7 @@ impl ZellijPlugin for State {
             Event::TabUpdate(tabs) => {
                 self.active_tab_idx = tabs.iter().position(|t| t.active).unwrap() + 1;
                 let mut new_tabs: Vec<TabInfo> = vec![];
-                for (i, tab) in tabs.iter().enumerate() {
+                for tab in tabs.iter() {
                     let temp = TabInfo {
                         active_swap_layout_name: tab.active_swap_layout_name.clone(),
                         is_swap_layout_dirty: tab.is_swap_layout_dirty,
@@ -84,12 +81,11 @@ impl ZellijPlugin for State {
         let mode = create_mode_part(&mode);
         let free_space_without_center = cols - mode.number_of_chars - left.number_of_chars;
         let tabs = create_tabs(&self.tabs, free_space_without_center);
-        let total_unused_space = cols - tabs.number_of_chars;
         if tabs.number_of_chars > cols {
             println!("Out of bounds");
             return;
         }
-        let middle = find_middle(cols);
+        let middle = spacing::find_middle(cols);
 
         let free_space = if tabs.number_of_chars > free_space_without_center {
             0
@@ -97,12 +93,24 @@ impl ZellijPlugin for State {
             free_space_without_center - tabs.number_of_chars
         };
         let tab_size = fix_wonky_programming(tabs.number_of_chars);
+        let (no_left_padding, no_right_padding) = alternatetopbar_lib::find_padding(cols, left.number_of_chars, tabs.number_of_chars, mode.number_of_chars);
+        /*
         let no_left_padding =
-            calculate_left_padding(middle, left.number_of_chars, tabs.number_of_chars);
+            spacing::calculate_left_padding(middle, left.number_of_chars, tabs.number_of_chars);
+        */
         let left_padding = " ".repeat(no_left_padding).on_black();
-        let no_right_padding =
-            calculate_right_padding(middle, mode.number_of_chars, tab_size, no_left_padding, free_space);
+        /*
+        let no_right_padding = spacing::calculate_right_padding(
+            cols,
+            middle,
+            mode.number_of_chars,
+            tab_size,
+            no_left_padding,
+            free_space,
+        );
+        */
         let right_padding = " ".repeat(no_right_padding).on_black();
+        /*
         println!(
             "Cols: {}, Middle: {}, Left size: {}, Tab size: {}, Right size: {}, left_padding: {left_padding}, right_padding: {right_padding}, free_space: {free_space}",
             cols,
@@ -114,6 +122,7 @@ impl ZellijPlugin for State {
             right_padding = no_right_padding,
             free_space = free_space,
         );
+        */
         /*
         println!(
             "Left padding {}, Right padding: {}",
@@ -130,17 +139,25 @@ impl ZellijPlugin for State {
             left = left.text,
             right = mode.text,
         );
-        println!("{left}{m}{right}", left = "*".repeat(middle - 1), m = "I".yellow(), right="*".repeat(middle-1));
+        println!(
+            "{left}{m}{right}",
+            left = "*".repeat(middle - 1),
+            m = "I".yellow(),
+            right = "*".repeat(if cols % 2 == 0 { middle } else { middle - 1 })
+        );
         println!(
             "left   size: {}, padding: {}",
             left.number_of_chars, no_left_padding
         );
-        println!("center size: {}, divided and rounded: {}. Should be +4 because of pad+seperators", tabs.number_of_chars, tab_size);
+        println!(
+            "center size: {}, divided and rounded: {}.",
+            tabs.number_of_chars, tab_size
+        );
         println!(
             "right  size: {}, padding: {}",
             mode.number_of_chars, no_right_padding
         );
-        println!("cols: {}, middle: {}", cols, middle);
+        println!("cols: {}, middle: {}, free_space_without_center: {}, free space: {}", cols, middle, free_space_without_center, free_space);
     }
 }
 
@@ -159,47 +176,51 @@ fn create_tabs(tabs: &Vec<TabInfo>, free_space: usize) -> ContentLol {
         // 2: 1 space before text, 1 after.
         // 2: Seperator before and after
         let extra_space_per_tab = 2 + 2;
-        let capped_text = cap_tab_text(
+        let capped_text = seperator::cap_tab_text(
             name.to_string(),
             extra_space_per_tab,
             free_space / number_of_tabs,
         );
         let capped_text_size = capped_text.len();
-        eprintln!("New text size: {}", capped_text_size);
+        // eprintln!("New text size: {}", capped_text_size);
         if tab.active {
-            s.push_str(&create_seperated_formated_text(ColorizeTokenOptions {
-                start: Some(DirectionOption {
+            s.push_str(&seperator::create_seperated_formated_text(
+                seperator::ColorizeTokenOptions {
+                    start: Some(seperator::DirectionOption {
+                        on: Some(Color::Yellow),
+                        color: Some(Color::Black),
+                        direction: seperator::SeperatorDirection::Right,
+                    }),
+                    end: Some(seperator::DirectionOption {
+                        on: Some(Color::Black),
+                        color: Some(Color::Yellow),
+                        direction: seperator::SeperatorDirection::Right,
+                    }),
+                    text: capped_text,
                     on: Some(Color::Yellow),
                     color: Some(Color::Black),
-                    direction: SeperatorDirection::Right,
-                }),
-                end: Some(DirectionOption {
-                    on: Some(Color::Black),
-                    color: Some(Color::Yellow),
-                    direction: SeperatorDirection::Right,
-                }),
-                text: capped_text,
-                on: Some(Color::Yellow),
-                color: Some(Color::Black),
-                pad_string: true,
-            }));
+                    pad_string: true,
+                },
+            ));
         } else {
-            s.push_str(&create_seperated_formated_text(ColorizeTokenOptions {
-                start: Some(DirectionOption {
+            s.push_str(&seperator::create_seperated_formated_text(
+                seperator::ColorizeTokenOptions {
+                    start: Some(seperator::DirectionOption {
+                        on: Some(Color::BrightBlack),
+                        color: Some(Color::Black),
+                        direction: seperator::SeperatorDirection::Right,
+                    }),
+                    end: Some(seperator::DirectionOption {
+                        on: Some(Color::Black),
+                        color: Some(Color::BrightBlack),
+                        direction: seperator::SeperatorDirection::Right,
+                    }),
+                    text: capped_text,
                     on: Some(Color::BrightBlack),
-                    color: Some(Color::Black),
-                    direction: SeperatorDirection::Right,
-                }),
-                end: Some(DirectionOption {
-                    on: Some(Color::Black),
-                    color: Some(Color::BrightBlack),
-                    direction: SeperatorDirection::Right,
-                }),
-                text: capped_text,
-                on: Some(Color::BrightBlack),
-                color: None,
-                pad_string: true,
-            }));
+                    color: None,
+                    pad_string: true,
+                },
+            ));
         }
         // Space left and right of tab name
         chars = chars + 2;
@@ -209,10 +230,8 @@ fn create_tabs(tabs: &Vec<TabInfo>, free_space: usize) -> ContentLol {
         chars = chars + 2;
     });
 
-    let number_of_spaces_between_tabs: usize = tabs.len() - 1;
-
     return ContentLol {
-        number_of_chars: chars + number_of_spaces_between_tabs,
+        number_of_chars: chars,
         text: s,
     };
 }
@@ -221,9 +240,9 @@ fn create_mode_part(mode: &InputMode) -> ContentLol {
     let zellij_human_readable_mode = format!("{:?}", mode).to_uppercase();
 
     let size = zellij_human_readable_mode.len();
-    let text = create_seperated_formated_text(ColorizeTokenOptions {
-        start: Some(DirectionOption {
-            direction: SeperatorDirection::Left,
+    let text = seperator::create_seperated_formated_text(seperator::ColorizeTokenOptions {
+        start: Some(seperator::DirectionOption {
+            direction: seperator::SeperatorDirection::Left,
             on: Some(Color::Black),
             color: Some(Color::Green),
         }),
@@ -241,91 +260,6 @@ fn create_mode_part(mode: &InputMode) -> ContentLol {
     };
 }
 
-#[derive(PartialEq, Eq)]
-enum SeperatorDirection {
-    Right,
-    Left,
-}
-struct DirectionOption {
-    direction: SeperatorDirection,
-    on: Option<Color>,
-    color: Option<Color>,
-}
-struct ColorizeTokenOptions {
-    start: Option<DirectionOption>,
-    end: Option<DirectionOption>,
-    text: String,
-    color: Option<Color>,
-    on: Option<Color>,
-    pad_string: bool,
-}
-fn create_seperated_formated_text(opts: ColorizeTokenOptions) -> String {
-    let output = color_token(&opts.text, opts.color, opts.on, opts.pad_string);
-    let mut _start = String::new();
-    let mut _end = String::new();
-    match opts.start {
-        Some(start) => {
-            _start = color_token(
-                if start.direction == SeperatorDirection::Left {
-                    LEFT_SEP
-                } else {
-                    RIGHT_SEP
-                },
-                start.color,
-                start.on,
-                false,
-            )
-        }
-        None => {}
-    }
-    match opts.end {
-        Some(end) => {
-            let sep = if end.direction == SeperatorDirection::Left {
-                LEFT_SEP
-            } else {
-                RIGHT_SEP
-            };
-            _end = color_token(sep, end.color, end.on, false);
-        }
-        None => {}
-    }
-    return format!("{}{}{}", _start, output, _end);
-}
-
-fn color_token(text: &str, fg: Option<Color>, bg: Option<Color>, pad_string: bool) -> String {
-    let padded_output = if pad_string {
-        format!(" {} ", text)
-    } else {
-        format!("{}", text)
-    };
-
-    let mut xd: Option<ColoredString> = None;
-    if fg.is_some() {
-        xd = Some(padded_output.color(fg.unwrap()))
-    }
-    if bg.is_some() {
-        if xd.is_some() {
-            xd = Some(xd.unwrap().on_color(bg.unwrap()))
-        } else {
-            xd = Some(padded_output.on_color(bg.unwrap()))
-        }
-    }
-    return match xd {
-        Some(a) => format!("{}", a),
-        None => String::new(),
-    };
-}
-
-fn cap_tab_text(text: String, extra_space: usize, free_space_per_tab: usize) -> String {
-    // Do we need to cut the tab name?
-    let total_space = text.len() + extra_space;
-    eprintln!("Is too large? text: {} free: {}", total_space, free_space_per_tab);
-    if total_space > free_space_per_tab {
-        eprintln!("Capping, size: {}, free space: {}, deriv: {}", total_space, free_space_per_tab, free_space_per_tab-3);
-        return format!("{}...", text[..free_space_per_tab - 3].to_string());
-    }
-    return text;
-}
 fn fix_wonky_programming(cheat: usize) -> usize {
     // Because tab can be an uneven amount of characters.
     // Dividing by 2 will produce "the same" integer for n and n+1.
@@ -348,10 +282,10 @@ fn create_session_name(maybe_session_name: Option<String>) -> ContentLol {
     } else {
         let val = maybe_session_name.unwrap();
         let val_size = val.len();
-        let x = create_seperated_formated_text(ColorizeTokenOptions {
+        let x = seperator::create_seperated_formated_text(seperator::ColorizeTokenOptions {
             start: None,
-            end: Some(DirectionOption {
-                direction: SeperatorDirection::Right,
+            end: Some(seperator::DirectionOption {
+                direction: seperator::SeperatorDirection::Right,
                 color: Some(Color::Red),
                 on: Some(Color::Black),
             }),
@@ -366,49 +300,4 @@ fn create_session_name(maybe_session_name: Option<String>) -> ContentLol {
             number_of_chars: val_size + 2 + 1,
         };
     }
-}
-
-fn calculate_left_padding(middle: usize, left_size: usize, center_size: usize) -> usize {
-    if (middle - left_size) < center_size / 2 {
-        return 0;
-    }
-    return middle - left_size - center_size / 2;
-}
-
-fn calculate_right_padding(
-    middle: usize,
-    right_size: usize,
-    center_size: usize,
-    left_padding_zero_compensation: usize,
-    free_space: usize,
-) -> usize {
-
-    /*
-    eprintln!(
-        "Right padding: middle: {} right_size: {} center_size: {}, product: {}",
-        middle,
-        right_size,
-        center_size,
-        (middle - right_size - center_size)
-    );
-    */
-    if left_padding_zero_compensation == 0 {
-        return free_space;
-    }
-    if (middle - right_size) < center_size {
-        return 0;
-    }
-    let calc = (middle - right_size - center_size);
-    // Because it's offshot by 1.
-    if calc > 0 {
-        return calc-1;
-    }
-    return calc;
-}
-
-fn find_middle(cols: usize) -> usize {
-    if cols % 2 != 0 {
-        return (cols/2)+1;
-    }
-    return cols/2;
 }

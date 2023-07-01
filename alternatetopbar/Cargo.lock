@@ -38,6 +38,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "alternatetopbar"
+version = "0.1.0"
+dependencies = [
+ "alternatetopbar-lib",
+ "colored",
+ "regex",
+ "unicode-segmentation",
+ "zellij-tile",
+]
+
+[[package]]
+name = "alternatetopbar-lib"
+version = "0.1.0"
+
+[[package]]
 name = "android-tzdata"
 version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1204,16 +1219,6 @@ dependencies = [
  "log",
  "wasi 0.11.0+wasi-snapshot-preview1",
  "windows-sys 0.48.0",
-]
-
-[[package]]
-name = "mode-logger"
-version = "0.1.0"
-dependencies = [
- "colored",
- "regex",
- "unicode-segmentation",
- "zellij-tile",
 ]
 
 [[package]]
