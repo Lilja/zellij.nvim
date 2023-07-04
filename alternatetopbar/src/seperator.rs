@@ -3,10 +3,19 @@ use colored::{Color, ColoredString, Colorize};
 const RIGHT_SEP: &str = "\u{E0B0}";
 const LEFT_SEP: &str = "\u{E0B2}";
 
-#[derive(PartialEq, Eq)]
+#[derive(PartialEq, Eq, Copy)]
 pub enum SeperatorDirection {
     Right,
     Left,
+}
+
+impl Clone for SeperatorDirection {
+    fn clone(&self) -> SeperatorDirection {
+        match self {
+            SeperatorDirection::Right => SeperatorDirection::Right,
+            SeperatorDirection::Left => SeperatorDirection::Left,
+        }
+    }
 }
 pub struct DirectionOption {
     pub direction: SeperatorDirection,

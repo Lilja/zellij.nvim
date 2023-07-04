@@ -1,18 +1,23 @@
 mod seperator;
-mod spacing;
+mod content;
+mod types;
 
-use colored::{Color, Colorize};
+use colored::Colorize;
 use zellij_tile::prelude::*;
 
 extern crate alternatetopbar_lib;
+
+
 
 #[derive(Default)]
 struct State {
     tabs: Vec<TabInfo>,
     active_tab_idx: usize,
     mode_info: ModeInfo,
+    plugin_conf: types::PluginConf,
     //mouse_click_pos: usize,
 }
+
 
 register_plugin!(State);
 
@@ -54,8 +59,6 @@ impl ZellijPlugin for State {
     }
 
     fn render(&mut self, rows: usize, cols: usize) {
-        let mode = self.mode_info.mode;
-        let session_name = &self.mode_info.session_name;
         /*
          * <-----------------------------> col     - e.g. 160
          * <--------------|--------------> middle = col / 2
@@ -77,23 +80,49 @@ impl ZellijPlugin for State {
          *
          * */
 
-        let left = create_session_name(session_name.clone());
-        let mode = create_mode_part(&mode);
-        let free_space_without_center = cols - mode.number_of_chars - left.number_of_chars;
-        let tabs = create_tabs(&self.tabs, free_space_without_center);
-        if tabs.number_of_chars > cols {
+        let left_conf = self.plugin_conf.left.clone();
+        let right_conf = self.plugin_conf.right.clone();
+        let center_conf = self.plugin_conf.center.clone();
+        eprintln!("-----------------------");
+        let left = content::config_to_actual_things(content::HugeConfig{
+            mode_info: self.mode_info.clone(),
+            direction: seperator::SeperatorDirection::Right,
+            plugin_conf_dir: left_conf,
+            free_space: cols,
+            tabs: self.tabs.clone(),
+        });
+        let right = content::config_to_actual_things(content::HugeConfig{
+            mode_info: self.mode_info.clone(),
+            direction: seperator::SeperatorDirection::Left,
+            plugin_conf_dir: right_conf,
+            free_space: cols - left.number_of_chars,
+            tabs: self.tabs.clone(),
+        });
+        let free_space_without_center = cols - right.number_of_chars - left.number_of_chars;
+        let center = content::config_to_actual_things(content::HugeConfig{
+            mode_info: self.mode_info.clone(),
+            direction: seperator::SeperatorDirection::Right,
+            plugin_conf_dir: center_conf,
+            free_space: free_space_without_center,
+            tabs: self.tabs.clone(),
+        });
+
+        // let session_name = create_session_name(session_name.clone());
+        // let spot = create_fake_artist(seperator::SeperatorDirection::Right);
+        // let left = merge_content(session_name, spot);
+        // let mode = create_mode_part(mode);
+        // let tabs = create_tabs(&self.tabs, free_space_without_center);
+        if center.number_of_chars > cols {
             println!("Out of bounds");
             return;
         }
-        let middle = spacing::find_middle(cols);
 
-        let free_space = if tabs.number_of_chars > free_space_without_center {
-            0
-        } else {
-            free_space_without_center - tabs.number_of_chars
-        };
-        let tab_size = fix_wonky_programming(tabs.number_of_chars);
-        let (no_left_padding, no_right_padding) = alternatetopbar_lib::find_padding(cols, left.number_of_chars, tabs.number_of_chars, mode.number_of_chars);
+        let (no_left_padding, no_right_padding) = alternatetopbar_lib::find_padding(
+            cols,
+            left.number_of_chars,
+            center.number_of_chars,
+            right.number_of_chars,
+        );
         /*
         let no_left_padding =
             spacing::calculate_left_padding(middle, left.number_of_chars, tabs.number_of_chars);
@@ -110,17 +139,17 @@ impl ZellijPlugin for State {
         );
         */
         let right_padding = " ".repeat(no_right_padding).on_black();
+        
         /*
         println!(
-            "Cols: {}, Middle: {}, Left size: {}, Tab size: {}, Right size: {}, left_padding: {left_padding}, right_padding: {right_padding}, free_space: {free_space}",
+            "Cols: {}, Left size: {}, Tab size: {}, Right size: {}, left_padding: {left_padding}, right_padding: {right_padding}, free_space: {free_space}",
             cols,
-            middle,
             left.number_of_chars,
-            tabs.number_of_chars,
-            mode.number_of_chars,
+            center.number_of_chars,
+            right.number_of_chars,
             left_padding = no_left_padding,
             right_padding = no_right_padding,
-            free_space = free_space,
+            free_space = free_space_without_center - center.number_of_chars,
         );
         */
         /*
@@ -135,9 +164,9 @@ impl ZellijPlugin for State {
             "{left}{left_padding}{center}{right_padding}{right}",
             left_padding = left_padding,
             right_padding = right_padding,
-            center = tabs.text,
+            center = center.text,
             left = left.text,
-            right = mode.text,
+            right = right.text,
         );
         /*
         println!(
@@ -163,146 +192,4 @@ impl ZellijPlugin for State {
     }
 }
 
-struct ContentLol {
-    number_of_chars: usize,
-    text: String,
-}
 
-fn create_tabs(tabs: &Vec<TabInfo>, free_space: usize) -> ContentLol {
-    let mut s = String::new();
-    let mut chars: usize = 0;
-
-    let number_of_tabs = tabs.len();
-    tabs.iter().for_each(|tab| {
-        let name = &tab.name;
-        // 2: 1 space before text, 1 after.
-        // 2: Seperator before and after
-        let extra_space_per_tab = 2 + 2;
-        let capped_text = seperator::cap_tab_text(
-            name.to_string(),
-            extra_space_per_tab,
-            free_space / number_of_tabs,
-        );
-        let capped_text_size = capped_text.len();
-        // eprintln!("New text size: {}", capped_text_size);
-        if tab.active {
-            s.push_str(&seperator::create_seperated_formated_text(
-                seperator::ColorizeTokenOptions {
-                    start: Some(seperator::DirectionOption {
-                        on: Some(Color::Yellow),
-                        color: Some(Color::Black),
-                        direction: seperator::SeperatorDirection::Right,
-                    }),
-                    end: Some(seperator::DirectionOption {
-                        on: Some(Color::Black),
-                        color: Some(Color::Yellow),
-                        direction: seperator::SeperatorDirection::Right,
-                    }),
-                    text: capped_text,
-                    on: Some(Color::Yellow),
-                    color: Some(Color::Black),
-                    pad_string: true,
-                },
-            ));
-        } else {
-            s.push_str(&seperator::create_seperated_formated_text(
-                seperator::ColorizeTokenOptions {
-                    start: Some(seperator::DirectionOption {
-                        on: Some(Color::BrightBlack),
-                        color: Some(Color::Black),
-                        direction: seperator::SeperatorDirection::Right,
-                    }),
-                    end: Some(seperator::DirectionOption {
-                        on: Some(Color::Black),
-                        color: Some(Color::BrightBlack),
-                        direction: seperator::SeperatorDirection::Right,
-                    }),
-                    text: capped_text,
-                    on: Some(Color::BrightBlack),
-                    color: None,
-                    pad_string: true,
-                },
-            ));
-        }
-        // Space left and right of tab name
-        chars = chars + 2;
-        // Tab name itself
-        chars = chars + capped_text_size;
-        // Left and right separator
-        chars = chars + 2;
-    });
-
-    return ContentLol {
-        number_of_chars: chars,
-        text: s,
-    };
-}
-
-fn create_mode_part(mode: &InputMode) -> ContentLol {
-    let zellij_human_readable_mode = format!("{:?}", mode).to_uppercase();
-
-    let size = zellij_human_readable_mode.len();
-    let text = seperator::create_seperated_formated_text(seperator::ColorizeTokenOptions {
-        start: Some(seperator::DirectionOption {
-            direction: seperator::SeperatorDirection::Left,
-            on: Some(Color::Black),
-            color: Some(Color::Green),
-        }),
-        end: None,
-        text: zellij_human_readable_mode,
-        color: Some(Color::Black),
-        on: Some(Color::Green),
-        pad_string: true,
-    });
-
-    return ContentLol {
-        // 2 spaces + 1 seperator
-        number_of_chars: size + 2 + 1,
-        text,
-    };
-}
-
-fn fix_wonky_programming(cheat: usize) -> usize {
-    // Because tab can be an uneven amount of characters.
-    // Dividing by 2 will produce "the same" integer for n and n+1.
-    // This has the affect that the line will "jump" every second character.
-    // To witness this, uncomment the solution and just return the product.
-    // eprintln!("val: {}", cheat);
-    if cheat == 0 {
-        return 0;
-    }
-    // eprintln!("val: {}, post: {}", cheat, ((cheat as f32) / 2.0).round() as usize);
-    return ((cheat as f32) / 2.0).round() as usize;
-}
-
-fn create_session_name(maybe_session_name: Option<String>) -> ContentLol {
-    if maybe_session_name.is_none() {
-        return ContentLol {
-            text: String::new(),
-            number_of_chars: 0,
-        };
-    } else {
-        let session_name = maybe_session_name.unwrap();
-        let val = format!(" {}", session_name);
-        let val_size = session_name.len();
-        // terminal icon + space
-        let extra_space = 1+1;
-        let x = seperator::create_seperated_formated_text(seperator::ColorizeTokenOptions {
-            start: None,
-            end: Some(seperator::DirectionOption {
-                direction: seperator::SeperatorDirection::Right,
-                color: Some(Color::Red),
-                on: Some(Color::Black),
-            }),
-            on: Some(Color::Red),
-            color: Some(Color::Black),
-            text: val,
-            pad_string: true,
-        });
-
-        return ContentLol {
-            text: x,
-            number_of_chars: val_size + extra_space + 2 + 1,
-        };
-    }
-}
