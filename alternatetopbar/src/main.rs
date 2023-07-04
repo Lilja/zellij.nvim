@@ -131,7 +131,7 @@ impl ZellijPlugin for State {
         );
         */
 
-        println!(
+        print!(
             "{left}{left_padding}{center}{right_padding}{right}",
             left_padding = left_padding,
             right_padding = right_padding,
@@ -139,6 +139,7 @@ impl ZellijPlugin for State {
             left = left.text,
             right = mode.text,
         );
+        /*
         println!(
             "{left}{m}{right}",
             left = "*".repeat(middle - 1),
@@ -158,6 +159,7 @@ impl ZellijPlugin for State {
             mode.number_of_chars, no_right_padding
         );
         println!("cols: {}, middle: {}, free_space_without_center: {}, free space: {}", cols, middle, free_space_without_center, free_space);
+        */
     }
 }
 
@@ -280,8 +282,11 @@ fn create_session_name(maybe_session_name: Option<String>) -> ContentLol {
             number_of_chars: 0,
         };
     } else {
-        let val = maybe_session_name.unwrap();
-        let val_size = val.len();
+        let session_name = maybe_session_name.unwrap();
+        let val = format!(" {}", session_name);
+        let val_size = session_name.len();
+        // terminal icon + space
+        let extra_space = 1+1;
         let x = seperator::create_seperated_formated_text(seperator::ColorizeTokenOptions {
             start: None,
             end: Some(seperator::DirectionOption {
@@ -297,7 +302,7 @@ fn create_session_name(maybe_session_name: Option<String>) -> ContentLol {
 
         return ContentLol {
             text: x,
-            number_of_chars: val_size + 2 + 1,
+            number_of_chars: val_size + extra_space + 2 + 1,
         };
     }
 }
