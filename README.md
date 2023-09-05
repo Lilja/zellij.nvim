@@ -15,12 +15,9 @@ For [vim-tmux-navigator](https://github.com/zellij-org/zellij) compatibility, us
 ```lua
 use {
     'Lilja/zellij.nvim',
-    -- If you want to configure the plugin
-    --[[
     config = function()
         require('zellij').setup({})
     end
-    ]]
 }
 ```
 
