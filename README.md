@@ -10,7 +10,7 @@ neovim integration with [zellij](https://github.com/zellij-org/zellij)
 * `:ZellijRenamePane`
 * `:ZellijRenameTab`
 
-For [vim-tmux-navigator](https://github.com/zellij-org/zellij) compatibility, use the `vimTmuxNavigatorKeybinds` prop during setup.
+For [vim-tmux-navigator](https://github.com/christoomey/vim-tmux-navigator) compatibility, use the `vimTmuxNavigatorKeybinds` prop during setup.
 
 ```lua
 use {
