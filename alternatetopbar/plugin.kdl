@@ -1,0 +1,24 @@
+layout {
+    tab name="1" {
+        pane borderless=true size=5 {
+            plugin location="file:/Users/lilja/code/zellij.nvim/alternatetopbar/target/wasm32-wasi/debug/alternatetopbar.wasm"
+            //plugin location="file:/home/lilja/code/zellij.nvim/alternatetopbar/target/wasm32-wasi/debug/alternatetopbar.wasm"
+        }
+        //pane command="fish" {
+        pane {
+            //args "-c" "tail -f /var/folders//gh/5q7ftwsx7r10yyq0yx6h07fm0000gn/T/zellij-501/zellij-log/zellij.log"
+            // args "-c" "tail -f /tmp/zellij-1000/zellij-log/zellij.log"
+        }
+
+    }
+    tab name="2" {
+        pane borderless=true size=5 {
+            plugin location="file:/Users/lilja/code/zellij.nvim/alternatetopbar/target/wasm32-wasi/debug/alternatetopbar.wasm"
+            //plugin location="file:/home/lilja/code/zellij.nvim/alternatetopbar/target/wasm32-wasi/debug/alternatetopbar.wasm"
+        }
+        pane command="fish" {
+            args "-c" "tail -f /var/folders//gh/5q7ftwsx7r10yyq0yx6h07fm0000gn/T/zellij-501/zellij-log/zellij.log"
+            //args "-c" "tail -f /tmp/zellij-1000/zellij-log/zellij.log"
+        }
+    }
+}
