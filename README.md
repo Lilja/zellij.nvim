@@ -1,5 +1,13 @@
 # zellij.nvim
 
+## Archived!
+
+Please try to use migrate to an alternative, if you are using this plugin. I do not use zellij and this plugin is essentially a proof of concept that you could seamlessly navigate between neovim and zellij.
+
+Read more here
+- [Link 1](https://github.com/zellij-org/zellij/issues/967)
+- [Link 2](https://github.com/Lilja/zellij.nvim/issues/6)
+
 neovim integration with [zellij](https://github.com/zellij-org/zellij)
 
 ## Features
